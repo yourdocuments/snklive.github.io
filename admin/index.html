@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .wrap{max-width:900px;margin:0 auto;padding:18px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+    .row>div{flex:1;min-width:180px}
+    .item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+    .item img,.av{width:44px;height:44px;border-radius:50%;object-fit:cover}
+    .av{display:grid;place-items:center;background:#1e3a8a;font-weight:800}
+    .item b{flex:1}
+  </style>
+</head>
+<body>
+  <div id="app" hidden>
+    <header class="topbar">
+      <div class="brand"><img id="logo" alt=""><span>Admin</span></div>
+      <button class="btn danger" id="logout">Logout</button>
+    </header>
+
+    <main class="wrap">
+      <div class="card">
+        <b>Add Student</b>
+        <div class="row">
+          <div><label class="l">Name</label><input class="input" id="name" placeholder="Student name"></div>
+          <div><label class="l">Photo (optional)</label><input type="file" id="photo" accept="image/*" class="muted"></div>
+          <button class="btn primary" id="add">+ Add</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <b>Students <span class="muted" id="count"></span></b>
+        <div id="list"></div>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    import { db, storage } from "../firebase.js";
+    import { CONFIG } from "../config.js";
+    import { protect, logout } from "../auth-guard.js";
+    import { collection, doc, setDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+    import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const toast = (m) => { $("toast").textContent = m; $("toast").classList.add("show"); setTimeout(() => $("toast").classList.remove("show"), 2500); };
+
+    await protect("admin");
+    $("app").hidden = false;
+    $("logo").src = CONFIG.logoUrl;
+    $("logout").onclick = logout;
+
+    onSnapshot(collection(db, "students"), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      $("count").textContent = `(${list.length})`;
+      $("list").innerHTML = list.map((s) => `
+        <div class="item">
+          ${s.image ? `<img src="${esc(s.image)}" alt="">` : `<span class="av">${esc((s.name || "?")[0])}</span>`}
+          <b>${esc(s.name)}</b>
+          <button class="btn danger" data-del="${esc(s.id)}">Delete</button>
+        </div>`).join("") || `<p class="muted" style="margin-top:10px">কোনো student নেই।</p>`;
+    }, () => toast("Students load হয়নি (rules চেক করুন)"));
+
+    $("list").addEventListener("click", async (e) => {
+      const id = e.target.dataset.del;
+      if (!id || !confirm("Delete করবেন?")) return;
+      try { await deleteDoc(doc(db, "students", id)); toast("Deleted"); } catch { toast("Delete হয়নি"); }
+    });
+
+    $("add").onclick = async () => {
+      const name = $("name").value.trim();
+      if (!name) return toast("Name দিন");
+      $("add").disabled = true;
+      try {
+        const id = "s_" + Date.now();
+        let image = "";
+        const f = $("photo").files[0];
+        if (f) {
+          const r = ref(storage, `students/${id}/${f.name.replace(/[^\w.-]/g, "_")}`);
+          await uploadBytes(r, f);
+          image = await getDownloadURL(r);
+        }
+        await setDoc(doc(db, "students", id), { name, image, createdAt: serverTimestamp() });
+        $("name").value = ""; $("photo").value = "";
+        toast("Student added");
+      } catch (err) { console.error(err); toast("Save হয়নি — Firebase rules/Storage চেক করুন"); }
+      $("add").disabled = false;
+    };
+  </script>
+</body>
+</html>

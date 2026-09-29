@@ -1,1 +1,35 @@
-#
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Course Studio</title>
+  <link rel="stylesheet" href="./assets/style.css">
+  <style>
+    .hero{text-align:center;max-width:560px}
+    .hero img{width:110px;height:110px;object-fit:contain;margin-bottom:18px}
+    .hero h1{font-size:clamp(38px,8vw,64px);letter-spacing:-2px;line-height:1}
+    .hero p{margin:14px 0 26px;color:var(--muted)}
+    .hero .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <main class="center">
+    <div class="hero">
+      <img id="logo" alt="Logo">
+      <h1 id="name">Personal Course Studio</h1>
+      <p>Learn • Create • Teach</p>
+      <div class="row">
+        <a class="btn primary" href="./login/">Login</a>
+        <a class="btn" href="./mentor/">Mentor Studio</a>
+      </div>
+    </div>
+  </main>
+  <script type="module">
+    import { CONFIG } from "./config.js";
+    document.getElementById("logo").src = CONFIG.logoUrl;
+    document.getElementById("name").textContent = CONFIG.studioName;
+    document.title = CONFIG.studioName;
+  </script>
+</body>
+</html>

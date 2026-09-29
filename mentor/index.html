@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mentor Studio</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    /* ===== রেকর্ডিং এলাকা: বাম = stage, ডান = zoom/student panel ===== */
+    .studio{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:0;height:min(72vh,calc(100vh - 210px));min-height:380px;background:#000;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .stage{position:relative;background:#020617;overflow:hidden}
+    .stage img,.stage video.main{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none}
+    .ph{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px;text-align:center;padding:20px}
+    .brand-badge{position:absolute;left:14px;bottom:14px;padding:7px 12px;border-radius:9px;background:rgba(2,6,23,.75);border:1px solid var(--line);font-size:12px;font-weight:800;z-index:5}
+    .mentor{position:absolute;right:14px;top:14px;width:22%;min-width:130px;aspect-ratio:4/3;border-radius:14px;border:2px solid rgba(255,255,255,.25);background:#111827 center/cover no-repeat;overflow:hidden;z-index:6;display:grid;place-items:center;font-size:11px;color:var(--muted)}
+    .mentor video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none}
+    .zoom{background:#0b1220;border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+    .zoom-head{padding:10px 14px;font-size:12px;font-weight:800;color:var(--muted);border-bottom:1px solid var(--line)}
+    .students{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+    .stu{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;background:rgba(255,255,255,.04);font-size:12px}
+    .stu img,.av{width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none}
+    .av{display:grid;place-items:center;background:#1e3a8a;font-weight:800}
+    /* toolbar + settings */
+    .wrap{padding:14px;max-width:1500px;margin:0 auto}
+    .bar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .row{display:flex;gap:8px;align-items:end}
+    .row>div{flex:1}
+    @media(max-width:800px){.studio{grid-template-columns:1fr;height:auto}.stage{aspect-ratio:16/9}.zoom{max-height:220px}.grid2{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div id="app" hidden>
+    <header class="topbar">
+      <div class="brand"><img id="logo" alt=""><span id="studioName"></span></div>
+      <button class="btn danger" id="logout">Logout</button>
+    </header>
+
+    <main class="wrap">
+      <!-- এই পুরো .studio অংশটাই ভিডিওতে রেকর্ড হবে -->
+      <section class="studio" id="studio">
+        <div class="stage" id="stage">
+          <div class="ph" id="ph">Slide / Image বা Main Video দিন</div>
+          <img id="slide" alt="">
+          <video id="video" class="main" controls playsinline></video>
+          <div class="brand-badge" id="brand"></div>
+          <div class="mentor" id="mentor">
+            <span id="camOff">Mentor Camera</span>
+            <video id="cam" autoplay muted playsinline></video>
+          </div>
+        </div>
+        <aside class="zoom">
+          <div class="zoom-head" id="zoomTitle"></div>
+          <div class="students" id="students"></div>
+        </aside>
+      </section>
+
+      <div class="bar">
+        <button class="btn" id="bSlide">🖼️ Slide</button>
+        <button class="btn" id="bVideo">🎬 Main Video</button>
+        <button class="btn" id="bCam">📷 Camera</button>
+        <button class="btn" id="bPlay">▶ Play/Pause</button>
+        <button class="btn" id="bClear">🧹 Clear</button>
+        <button class="btn" id="bFull">⛶ Fullscreen</button>
+        <button class="btn rec" id="bRec">● Record</button>
+      </div>
+      <p class="muted">Record চাপলে browser জিজ্ঞেস করবে — এই <b>Tab</b> টা select করুন (audio share চালু রাখুন), তাহলে পুরো layout রেকর্ড হবে।</p>
+
+      <div class="grid2" style="margin-top:14px">
+        <div class="card">
+          <b>Studio Settings</b>
+          <label class="l">Brand name (নিচে বাম কোণা)</label>
+          <input class="input" id="brandIn">
+          <div class="row">
+            <div><label class="l">Mentor frame রঙ</label><input class="input" id="bgIn" type="color" style="padding:4px"></div>
+            <div><label class="l">অথবা ছবি</label><button class="btn" id="bBgImg" style="width:100%">Image দিন</button></div>
+          </div>
+          <button class="btn primary" id="saveSet" style="margin-top:14px">Save</button>
+        </div>
+
+        <div class="card">
+          <b>Voice Clone</b>
+          <p class="muted" style="margin:8px 0">Voice clone করতে একটা backend/API লাগে (browser-এ এটা হয় না)। API URL বসালে sample + main video সেখানে পাঠানো হবে।</p>
+          <label class="l">Voice sample</label>
+          <input type="file" id="voiceIn" accept="audio/*" class="muted">
+          <label class="l">Backend API URL</label>
+          <input class="input" id="apiIn" placeholder="https://your-server/clone">
+          <button class="btn primary" id="bClone" style="margin-top:12px">Clone Voice</button>
+          <div class="muted" id="voiceMsg" style="margin-top:8px"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <input type="file" id="slideIn" accept="image/*" hidden>
+  <input type="file" id="videoIn" accept="video/*" hidden>
+  <input type="file" id="bgImgIn" accept="image/*" hidden>
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    import { db } from "../firebase.js";
+    import { CONFIG } from "../config.js";
+    import { protect, logout } from "../auth-guard.js";
+    import { doc, collection, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const toast = (m) => { $("toast").textContent = m; $("toast").classList.add("show"); setTimeout(() => $("toast").classList.remove("show"), 2500); };
+
+    await protect("mentor");
+    $("app").hidden = false;
+    $("logo").src = CONFIG.logoUrl;
+    $("studioName").textContent = CONFIG.studioName;
+    $("logout").onclick = logout;
+
+    /* ---------- settings (Firestore: studio/settings) ---------- */
+    const S = { brandName: CONFIG.brandName, zoomTitle: CONFIG.zoomTitle, mentorBg: "#111827" };
+    function apply() {
+      $("brand").textContent = S.brandName;
+      $("zoomTitle").textContent = S.zoomTitle;
+      $("mentor").style.backgroundColor = S.mentorBg;
+      $("brandIn").value = S.brandName;
+      $("bgIn").value = S.mentorBg;
+    }
+    apply();
+    onSnapshot(doc(db, "studio", "settings"), (s) => { if (s.exists()) { Object.assign(S, s.data()); apply(); } }, () => {});
+    $("saveSet").onclick = async () => {
+      S.brandName = $("brandIn").value.trim() || CONFIG.brandName;
+      S.mentorBg = $("bgIn").value;
+      $("mentor").style.backgroundImage = "none";
+      apply();
+      try { await setDoc(doc(db, "studio", "settings"), { brandName: S.brandName, mentorBg: S.mentorBg }, { merge: true }); toast("Saved"); }
+      catch { toast("Save হয়নি (Firebase rules চেক করুন)"); }
+    };
+    $("bBgImg").onclick = () => $("bgImgIn").click();
+    $("bgImgIn").onchange = (e) => { const f = e.target.files[0]; if (f) $("mentor").style.backgroundImage = `url(${URL.createObjectURL(f)})`; };
+
+    /* ---------- students ---------- */
+    onSnapshot(collection(db, "students"), (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      $("students").innerHTML = list.map((s) =>
+        `<div class="stu">${s.image ? `<img src="${esc(s.image)}" alt="">` : `<span class="av">${esc((s.name || "?")[0])}</span>`}<b>${esc(s.name)}</b></div>`
+      ).join("") || `<p class="muted">Admin থেকে student যোগ করুন।</p>`;
+    }, () => { $("students").innerHTML = `<p class="muted">Students load হয়নি।</p>`; });
+
+    /* ---------- stage media ---------- */
+    function show(w) {
+      $("slide").style.display = w === "slide" ? "block" : "none";
+      $("video").style.display = w === "video" ? "block" : "none";
+      $("ph").style.display = w ? "none" : "grid";
+      if (w !== "video") $("video").pause();
+    }
+    $("bSlide").onclick = () => $("slideIn").click();
+    $("bVideo").onclick = () => $("videoIn").click();
+    $("slideIn").onchange = (e) => { const f = e.target.files[0]; if (f) { $("slide").src = URL.createObjectURL(f); show("slide"); } };
+    $("videoIn").onchange = (e) => { const f = e.target.files[0]; if (f) { $("video").src = URL.createObjectURL(f); show("video"); } };
+    $("bPlay").onclick = () => { const v = $("video"); if (!v.src) return toast("আগে Main Video দিন"); v.paused ? v.play() : v.pause(); };
+    $("bClear").onclick = () => { $("slide").removeAttribute("src"); $("video").removeAttribute("src"); $("video").load(); show(null); };
+    $("bFull").onclick = () => document.fullscreenElement ? document.exitFullscreen() : $("studio").requestFullscreen().catch(() => toast("Fullscreen হয়নি"));
+
+    /* ---------- mentor camera ---------- */
+    let camStream = null;
+    $("bCam").onclick = async () => {
+      if (camStream) {
+        camStream.getTracks().forEach((t) => t.stop()); camStream = null;
+        $("cam").srcObject = null; $("cam").style.display = "none"; $("camOff").style.display = "block";
+        return;
+      }
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        $("cam").srcObject = camStream; $("cam").style.display = "block"; $("camOff").style.display = "none";
+      } catch { toast("Camera permission দিন"); }
+    };
+
+    /* ---------- recording ---------- */
+    let rec = null, chunks = [];
+    $("bRec").onclick = async () => {
+      if (rec) { rec.stop(); return; }
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true, preferCurrentTab: true });
+        chunks = [];
+        rec = new MediaRecorder(stream);
+        rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+        rec.onstop = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(new Blob(chunks, { type: "video/webm" }));
+          a.download = `class-${Date.now()}.webm`;
+          a.click();
+          rec = null; $("bRec").classList.remove("on"); $("bRec").textContent = "● Record"; toast("Recording saved");
+        };
+        stream.getVideoTracks()[0].addEventListener("ended", () => rec && rec.state !== "inactive" && rec.stop());
+        rec.start(1000);
+        $("bRec").classList.add("on"); $("bRec").textContent = "■ Stop";
+      } catch { rec = null; toast("Recording শুরু হয়নি"); }
+    };
+
+    /* ---------- voice clone (backend লাগবে) ---------- */
+    $("apiIn").value = localStorage.getItem("voiceApi") || "";
+    $("bClone").onclick = async () => {
+      const sample = $("voiceIn").files[0];
+      const api = $("apiIn").value.trim();
+      if (!sample) return toast("Voice sample দিন");
+      if (!api) { $("voiceMsg").textContent = "API URL নেই — backend যোগ হলে actual clone হবে।"; return; }
+      localStorage.setItem("voiceApi", api);
+      if (!$("video").src) return toast("আগে Main Video দিন");
+      $("bClone").disabled = true; $("voiceMsg").textContent = "Processing...";
+      try {
+        const fd = new FormData();
+        fd.append("voiceSample", sample);
+        fd.append("sourceVideo", await (await fetch($("video").src)).blob(), "source.webm");
+        const res = await fetch(api, { method: "POST", body: fd });
+        if (!res.ok) throw new Error(res.status);
+        const type = res.headers.get("content-type") || "";
+        if (type.includes("json")) { const j = await res.json(); if (j.videoUrl) $("video").src = j.videoUrl; }
+        else $("video").src = URL.createObjectURL(await res.blob());
+        show("video"); $("voiceMsg").textContent = "Done ✓";
+      } catch (e) { $("voiceMsg").textContent = "Failed: " + e.message; }
+      $("bClone").disabled = false;
+    };
+  </script>
+</body>
+</html>

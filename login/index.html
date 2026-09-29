@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .box{width:100%;max-width:400px}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;margin:18px 0 6px;border:1px solid var(--line);border-radius:12px}
+    .tabs button{height:42px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-weight:800}
+    .tabs button.on{background:var(--blue);color:#fff}
+    .msg{margin-top:12px;font-size:12px;min-height:18px;color:#fca5a5}
+    .msg.ok{color:#86efac}
+  </style>
+</head>
+<body>
+  <main class="center">
+    <div class="box card">
+      <a href="../" class="muted">← Home</a>
+      <h1 style="margin-top:12px">Sign in</h1>
+      <div class="tabs">
+        <button type="button" id="tabMentor" class="on">🎓 Mentor</button>
+        <button type="button" id="tabAdmin">👑 Admin</button>
+      </div>
+      <form id="form">
+        <label class="l">Account</label>
+        <input class="input" id="email" readonly>
+        <label class="l">Password</label>
+        <input class="input" id="pass" type="password" autocomplete="current-password" placeholder="Password">
+        <button class="btn primary" id="go" style="width:100%;margin-top:16px;min-height:46px">Continue</button>
+        <div class="msg" id="msg"></div>
+      </form>
+    </div>
+  </main>
+
+  <script type="module">
+    import { auth } from "../firebase.js";
+    import { emailFor } from "../auth-guard.js";
+    import { signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+    const $ = (id) => document.getElementById(id);
+    let role = "mentor";
+
+    function pick(r) {
+      role = r;
+      $("tabMentor").classList.toggle("on", r === "mentor");
+      $("tabAdmin").classList.toggle("on", r === "admin");
+      $("email").value = emailFor(r);
+      $("pass").value = "";
+      $("msg").textContent = "";
+    }
+    $("tabMentor").onclick = () => pick("mentor");
+    $("tabAdmin").onclick = () => pick("admin");
+    pick("mentor");
+
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const pass = $("pass").value;
+      if (!pass) { $("msg").textContent = "Password দিন।"; return; }
+      $("go").disabled = true;
+      $("msg").className = "msg";
+      try {
+        if (auth.currentUser) await signOut(auth);
+        await signInWithEmailAndPassword(auth, emailFor(role), pass);
+        $("msg").className = "msg ok";
+        $("msg").textContent = "Login successful...";
+        location.href = role === "admin" ? "../admin/" : "../mentor/";
+      } catch (err) {
+        console.error(err);
+        $("msg").textContent = err.code === "auth/network-request-failed"
+          ? "Internet সমস্যা।" : "Email বা password সঠিক নয়।";
+        $("go").disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
